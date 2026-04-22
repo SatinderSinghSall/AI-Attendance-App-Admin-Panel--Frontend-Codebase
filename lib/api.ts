@@ -1,9 +1,13 @@
-export const BASE_URL = "http://localhost:5000/api";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 async function request(endpoint: string) {
   const res = await fetch(`${BASE_URL}${endpoint}`);
-  const json = await res.json();
 
+  if (!res.ok) {
+    throw new Error("API request failed");
+  }
+
+  const json = await res.json();
   return json.data || json;
 }
 
