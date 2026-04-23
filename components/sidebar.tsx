@@ -18,6 +18,11 @@ const links = [
   { name: "Subjects", href: "/subjects", icon: BookOpen },
   { name: "Subjects & Students", href: "/subject-students", icon: Link2 },
   { name: "Attendance", href: "/attendance", icon: CalendarCheck },
+  {
+    name: "Manage Attendance",
+    href: "/manage-attendance",
+    icon: CalendarCheck,
+  },
 ];
 
 export default function Sidebar() {
