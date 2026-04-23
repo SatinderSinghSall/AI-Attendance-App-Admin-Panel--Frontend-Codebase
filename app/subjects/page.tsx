@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -40,7 +41,9 @@ export default function SubjectsPage() {
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-
+  const [loadingAdd, setLoadingAdd] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
   const [selected, setSelected] = useState<Subject | null>(null);
 
   const [form, setForm] = useState({
@@ -69,63 +72,101 @@ export default function SubjectsPage() {
     }
   };
 
-  // ➕ Create
   const handleAdd = async () => {
-    await fetch(`${BASE_URL}/subjects`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      if (!form.name) {
+        toast.error("Name is required");
+        return;
+      }
 
-    setOpenAdd(false);
-    setForm({
-      name: "",
-      subject_code: "",
-      section: "",
-      teacher_id: "",
-    });
+      setLoadingAdd(true);
 
-    fetchData();
+      const res = await fetch(`${BASE_URL}/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Subject created successfully 🎉");
+
+      setOpenAdd(false);
+      setForm({
+        name: "",
+        subject_code: "",
+        section: "",
+        teacher_id: "",
+      });
+
+      fetchData();
+    } catch {
+      toast.error("Failed to create subject ❌");
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
   const handleEdit = async () => {
     if (!selected) return;
 
-    await fetch(`${BASE_URL}/subjects/${selected.subject_id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      setLoadingEdit(true);
 
-    setOpenEdit(false);
-    setSelected(null);
-    fetchData();
+      const res = await fetch(`${BASE_URL}/subjects/${selected.subject_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Subject updated ✏️");
+
+      setOpenEdit(false);
+      setSelected(null);
+      fetchData();
+    } catch (err) {
+      toast.error("Failed to update subject ❌");
+    } finally {
+      setLoadingEdit(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!selected) return;
 
-    await fetch(`${BASE_URL}/subjects/${selected.subject_id}`, {
-      method: "DELETE",
-    });
+    try {
+      setLoadingDelete(true);
 
-    setOpenDelete(false);
-    setSelected(null);
-    fetchData();
+      const res = await fetch(`${BASE_URL}/subjects/${selected.subject_id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Subject deleted 🗑️");
+
+      setOpenDelete(false);
+      setSelected(null);
+      fetchData();
+    } catch (err) {
+      toast.error("Failed to delete subject ❌");
+    } finally {
+      setLoadingDelete(false);
+    }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 🔍 Filter
   const filtered = useMemo(() => {
     return subjects.filter((s) =>
       s.name.toLowerCase().includes(search.toLowerCase()),
     );
   }, [subjects, search]);
 
-  // 📄 Pagination
   const totalPages = Math.ceil(filtered.length / pageSize);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -136,7 +177,6 @@ export default function SubjectsPage() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold">Subjects</h2>
 
-        {/* RIGHT SIDE */}
         <div className="flex items-center gap-2">
           <Input
             placeholder="Search subjects..."
@@ -289,67 +329,123 @@ export default function SubjectsPage() {
       </div>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Subject</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">
+              Add Subject
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Create a new subject for your system.
+            </p>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="Subject Code"
-              onChange={(e) =>
-                setForm({ ...form, subject_code: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Section"
-              onChange={(e) => setForm({ ...form, section: e.target.value })}
-            />
-            <Input
-              placeholder="Teacher ID"
-              onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
-            />
+          <div className="space-y-4 mt-4">
+            {/* Name */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Subject Name</label>
+              <Input
+                placeholder="e.g. Full-Stack Development"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+
+            {/* Code */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Subject Code</label>
+              <Input
+                placeholder="e.g. CS101"
+                value={form.subject_code}
+                onChange={(e) =>
+                  setForm({ ...form, subject_code: e.target.value })
+                }
+              />
+            </div>
+
+            {/* Section */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Section</label>
+              <Input
+                placeholder="A / B / C"
+                value={form.section}
+                onChange={(e) => setForm({ ...form, section: e.target.value })}
+              />
+            </div>
+
+            {/* Teacher */}
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Teacher ID</label>
+              <Input
+                placeholder="Enter teacher ID"
+                value={form.teacher_id}
+                onChange={(e) =>
+                  setForm({ ...form, teacher_id: e.target.value })
+                }
+              />
+            </div>
           </div>
 
-          <DialogFooter>
-            <Button onClick={handleAdd}>Create</Button>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setOpenAdd(false)}>
+              Cancel
+            </Button>
+
+            <Button onClick={handleAdd} disabled={loadingAdd}>
+              {loadingAdd ? "Creating..." : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle>Edit Subject</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              value={form.subject_code}
-              onChange={(e) =>
-                setForm({ ...form, subject_code: e.target.value })
-              }
-            />
-            <Input
-              value={form.section}
-              onChange={(e) => setForm({ ...form, section: e.target.value })}
-            />
-            <Input
-              value={form.teacher_id}
-              onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
-            />
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Subject Name</label>
+              <Input
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Subject Code</label>
+              <Input
+                value={form.subject_code}
+                onChange={(e) =>
+                  setForm({ ...form, subject_code: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Section</label>
+              <Input
+                value={form.section}
+                onChange={(e) => setForm({ ...form, section: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Teacher ID</label>
+              <Input
+                value={form.teacher_id}
+                onChange={(e) =>
+                  setForm({ ...form, teacher_id: e.target.value })
+                }
+              />
+            </div>
           </div>
 
           <DialogFooter>
-            <Button onClick={handleEdit}>Update</Button>
+            <Button onClick={handleEdit} disabled={loadingEdit}>
+              {loadingEdit ? "Updating..." : "Update"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -359,13 +455,16 @@ export default function SubjectsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete subject?</AlertDialogTitle>
             <p className="text-sm text-muted-foreground">
-              This cannot be undone.
+              This action cannot be undone. This will permanently delete the
+              subject.
             </p>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={loadingDelete}>
+              {loadingDelete ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

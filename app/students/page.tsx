@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 import { BASE_URL, fetchStudents } from "@/lib/api";
 
@@ -40,6 +41,9 @@ export default function StudentsPage() {
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [loadingAdd, setLoadingAdd] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
 
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
 
@@ -50,7 +54,6 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  // 🔥 Fetch
   useEffect(() => {
     const load = async () => {
       try {
@@ -66,28 +69,49 @@ export default function StudentsPage() {
     load();
   }, []);
 
-  // 🔍 Filter
   const filtered = useMemo(() => {
     return students.filter((s) =>
       s.name?.toLowerCase().includes(search.toLowerCase()),
     );
   }, [students, search]);
 
-  // 📄 Pagination
   const totalPages = Math.ceil(filtered.length / pageSize);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  const handleAdd = async () => {
-    await fetch(`${BASE_URL}/students`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+  const reloadStudents = async () => {
+    const list = await fetchStudents();
+    setStudents(list);
+  };
 
-    setOpenAdd(false);
-    setForm({ name: "" });
-    location.reload();
+  const handleAdd = async () => {
+    try {
+      if (!form.name) {
+        toast.error("Name is required");
+        return;
+      }
+
+      setLoadingAdd(true);
+
+      const res = await fetch(`${BASE_URL}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Student created 🎉");
+
+      setOpenAdd(false);
+      setForm({ name: "" });
+
+      await reloadStudents();
+    } catch {
+      toast.error("Failed to create student ❌");
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
   const handleEdit = async () => {
@@ -96,15 +120,28 @@ export default function StudentsPage() {
     const id =
       selectedStudent.student_id || selectedStudent.id || selectedStudent._id;
 
-    await fetch(`${BASE_URL}/students/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      setLoadingEdit(true);
 
-    setOpenEdit(false);
-    setSelectedStudent(null);
-    location.reload();
+      const res = await fetch(`${BASE_URL}/students/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Student updated ✏️");
+
+      setOpenEdit(false);
+      setSelectedStudent(null);
+
+      await reloadStudents();
+    } catch {
+      toast.error("Failed to update student ❌");
+    } finally {
+      setLoadingEdit(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -113,13 +150,26 @@ export default function StudentsPage() {
     const id =
       selectedStudent.student_id || selectedStudent.id || selectedStudent._id;
 
-    await fetch(`${BASE_URL}/students/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      setLoadingDelete(true);
 
-    setOpenDelete(false);
-    setSelectedStudent(null);
-    location.reload();
+      const res = await fetch(`${BASE_URL}/students/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Student deleted 🗑️");
+
+      setOpenDelete(false);
+      setSelectedStudent(null);
+
+      await reloadStudents();
+    } catch {
+      toast.error("Failed to delete student ❌");
+    } finally {
+      setLoadingDelete(false);
+    }
   };
 
   return (
@@ -264,37 +314,58 @@ export default function StudentsPage() {
       </div>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Student</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Create a new student entry.
+            </p>
           </DialogHeader>
 
-          <Input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ name: e.target.value })}
-          />
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Student Name</label>
+              <Input
+                placeholder="e.g. Satinder Singh"
+                value={form.name}
+                onChange={(e) => setForm({ name: e.target.value })}
+              />
+            </div>
+          </div>
 
           <DialogFooter>
-            <Button onClick={handleAdd}>Create</Button>
+            <Button variant="outline" onClick={() => setOpenAdd(false)}>
+              Cancel
+            </Button>
+
+            <Button onClick={handleAdd} disabled={loadingAdd}>
+              {loadingAdd ? "Creating..." : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Student</DialogTitle>
           </DialogHeader>
 
-          <Input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ name: e.target.value })}
-          />
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Student Name</label>
+              <Input
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ name: e.target.value })}
+              />
+            </div>
+          </div>
 
           <DialogFooter>
-            <Button onClick={handleEdit}>Update</Button>
+            <Button onClick={handleEdit} disabled={loadingEdit}>
+              {loadingEdit ? "Updating..." : "Update"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -310,7 +381,9 @@ export default function StudentsPage() {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={loadingDelete}>
+              {loadingDelete ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

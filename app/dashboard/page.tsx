@@ -30,10 +30,13 @@ export default function Dashboard() {
 
   const [activity, setActivity] = useState<Activity[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
+        setLoading(true);
+
         const stats = await fetchDashboard();
         setStats(stats);
 
@@ -49,11 +52,71 @@ export default function Dashboard() {
         setChartData(grouped);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
 
     load();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header Skeleton */}
+        <div className="space-y-2">
+          <div className="h-8 w-40 bg-muted animate-pulse rounded" />
+          <div className="h-4 w-72 bg-muted animate-pulse rounded" />
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="h-4 w-24 bg-muted animate-pulse rounded mb-2" />
+                <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Chart + Activity Skeleton */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="h-6 w-40 bg-muted animate-pulse rounded mb-4" />
+              <div className="h-56 bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 space-y-3">
+              <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-4 w-full bg-muted animate-pulse rounded"
+                />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Insights Skeleton */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6 space-y-2">
+                <div className="h-5 w-40 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-full bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

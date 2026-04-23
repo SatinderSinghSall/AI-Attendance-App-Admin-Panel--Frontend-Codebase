@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 import { BASE_URL } from "@/lib/api";
 
@@ -35,6 +36,9 @@ type Teacher = {
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAdd, setLoadingAdd] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
 
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -52,7 +56,6 @@ export default function TeachersPage() {
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
-  // 🔥 Fetch Teachers
   const fetchTeachers = async () => {
     try {
       const res = await fetch(`${BASE_URL}/teachers`);
@@ -66,48 +69,95 @@ export default function TeachersPage() {
   };
 
   const handleAdd = async () => {
-    await fetch(`${BASE_URL}/teachers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      if (!form.name || !form.username || !form.password) {
+        toast.error("All fields are required");
+        return;
+      }
 
-    setOpenAdd(false);
-    setForm({ username: "", name: "", password: "" });
-    fetchTeachers();
+      setLoadingAdd(true);
+
+      const res = await fetch(`${BASE_URL}/teachers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Teacher created 🎉");
+
+      setOpenAdd(false);
+      setForm({ username: "", name: "", password: "" });
+
+      fetchTeachers();
+    } catch {
+      toast.error("Failed to create teacher ❌");
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
   const handleEdit = async () => {
     if (!selectedTeacher) return;
 
-    await fetch(`${BASE_URL}/teachers/${selectedTeacher.teacher_id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      setLoadingEdit(true);
 
-    setOpenEdit(false);
-    setSelectedTeacher(null);
-    fetchTeachers();
+      const res = await fetch(
+        `${BASE_URL}/teachers/${selectedTeacher.teacher_id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        },
+      );
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Teacher updated ✏️");
+
+      setOpenEdit(false);
+      setSelectedTeacher(null);
+      fetchTeachers();
+    } catch {
+      toast.error("Failed to update teacher ❌");
+    } finally {
+      setLoadingEdit(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!selectedTeacher) return;
 
-    await fetch(`${BASE_URL}/teachers/${selectedTeacher.teacher_id}`, {
-      method: "DELETE",
-    });
+    try {
+      setLoadingDelete(true);
 
-    setOpenDelete(false);
-    setSelectedTeacher(null);
-    fetchTeachers();
+      const res = await fetch(
+        `${BASE_URL}/teachers/${selectedTeacher.teacher_id}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!res.ok) throw new Error();
+
+      toast.success("Teacher deleted 🗑️");
+
+      setOpenDelete(false);
+      setSelectedTeacher(null);
+      fetchTeachers();
+    } catch {
+      toast.error("Failed to delete teacher ❌");
+    } finally {
+      setLoadingDelete(false);
+    }
   };
 
   useEffect(() => {
     fetchTeachers();
   }, []);
 
-  // 🔍 Filter
   const filtered = useMemo(() => {
     return teachers.filter(
       (t) =>
@@ -116,7 +166,6 @@ export default function TeachersPage() {
     );
   }, [teachers, search]);
 
-  // 📄 Pagination
   const totalPages = Math.ceil(filtered.length / pageSize);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -275,63 +324,95 @@ export default function TeachersPage() {
       </div>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Teacher</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Create a new teacher account.
+            </p>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="Username"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-            />
-            <Input
-              type="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                placeholder="e.g. John Doe"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Username</label>
+              <Input
+                placeholder="e.g. johndoe"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Password</label>
+              <Input
+                type="password"
+                placeholder="Enter password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
           </div>
 
           <DialogFooter>
-            <Button onClick={handleAdd}>Create</Button>
+            <Button variant="outline" onClick={() => setOpenAdd(false)}>
+              Cancel
+            </Button>
+
+            <Button onClick={handleAdd} disabled={loadingAdd}>
+              {loadingAdd ? "Creating..." : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit Teacher</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              placeholder="Username"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-            />
-            <Input
-              type="password"
-              placeholder="New Password (optional)"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+          <div className="space-y-4 mt-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                autoFocus
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Username</label>
+              <Input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">New Password</label>
+              <Input
+                type="password"
+                placeholder="Leave blank to keep current"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
           </div>
 
           <DialogFooter>
-            <Button onClick={handleEdit}>Update</Button>
+            <Button onClick={handleEdit} disabled={loadingEdit}>
+              {loadingEdit ? "Updating..." : "Update"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -347,7 +428,9 @@ export default function TeachersPage() {
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} disabled={loadingDelete}>
+              {loadingDelete ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
